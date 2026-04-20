@@ -1,5 +1,5 @@
 import {BaseController} from "./base-controller";
-import {FindOptionsRelations, FindOptionsWhere} from "typeorm";
+import {FindOptionsOrder, FindOptionsRelations, FindOptionsWhere} from "typeorm";
 import {Product} from "../entity/Product";
 
 export class ProductController extends BaseController<Product> {
@@ -46,7 +46,7 @@ export class ProductController extends BaseController<Product> {
         await this.repository.update(id, received);
     }
 
-    buildOrder(query: any): {} {
-        return {name: "ASC"};
+    buildOrder(query: any): FindOptionsOrder<Product> {
+        return {favorite: "DESC", name: "ASC"};
     }
 }

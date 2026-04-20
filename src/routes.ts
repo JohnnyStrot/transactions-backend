@@ -3,6 +3,7 @@ import {CompanyController} from "./controller/company-controller";
 import {ProductController} from "./controller/product-controller";
 import {TransactionController} from "./controller/transaction-controller";
 import {TransactionPartnerController} from "./controller/transaction-partner-controller";
+import {AnalysisController} from "./controller/analysis-controller";
 
 const router = Router();
 

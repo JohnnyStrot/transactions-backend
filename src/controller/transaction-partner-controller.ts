@@ -1,5 +1,5 @@
 import {BaseController} from "./base-controller";
-import {FindOptionsRelations, FindOptionsWhere} from "typeorm";
+import {FindOptionsOrder, FindOptionsRelations, FindOptionsWhere} from "typeorm";
 import {TransactionPartner} from "../entity/TransactionPartner";
 
 export class TransactionPartnerController extends BaseController<TransactionPartner> {
@@ -39,7 +39,7 @@ export class TransactionPartnerController extends BaseController<TransactionPart
         await this.repository.update(id, received);
     }
 
-    buildOrder(query: any): {} {
-        return {name: "ASC"};
+    buildOrder(query: any): FindOptionsOrder<TransactionPartner> {
+        return {favorite: "DESC", name: "ASC"};
     }
 }
