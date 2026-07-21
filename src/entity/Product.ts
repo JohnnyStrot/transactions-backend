@@ -25,6 +25,7 @@ export class Product extends AbstractEntity<Product> {
         a.lactose_free = this.lactose_free;
         a.gluten_free = this.gluten_free;
         a.favorite = this.favorite;
+        a.color = this.color;
 
         if (this.producer)
             a.producer = this.producer.toJSON();
@@ -55,6 +56,7 @@ export class Product extends AbstractEntity<Product> {
         this.lactose_free = ent.lactose_free;
         this.gluten_free = ent.gluten_free;
         this.favorite = ent.favorite;
+        this.color = ent.color;
 
         return this;
     }
@@ -119,6 +121,13 @@ export class Product extends AbstractEntity<Product> {
 
     @Column({type: 'bool', nullable: false, default: false})
     favorite: boolean = false
+
+    @Column({type: 'int', nullable: false, default: 0xFF7F7F7F})
+    color: number = 0xFF7F7F7F
+
+    // Sum of transactions for analysis
+    @Column({select: false, nullable: true})
+    sum: string;
 
     @ManyToOne(type => Company, comp => comp.products, {nullable: true, onDelete: "SET NULL"})
     producer?: Company | null = null

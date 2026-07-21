@@ -1,21 +1,28 @@
 import {Router} from "express";
 import {AppDataSource} from "../data-source";
 import {Transaction} from "../entity/Transaction";
-import {Repository} from "typeorm";
+import {Repository, SelectQueryBuilder, TreeRepository} from "typeorm";
+import {Product} from "../entity/Product";
 
 export class AnalysisController {
 
     public router: Router;
     transactionRepo: Repository<Transaction>;
+    productRepo: TreeRepository<Product>;
 
     constructor() {
         this.router = Router();
         this.transactionRepo = AppDataSource.getRepository(Transaction);
+        this.productRepo = AppDataSource.getTreeRepository(Product);
         this.initializeRoutes();
     }
 
     initializeRoutes() {
         this.router.get("/dashboard-general", this.dashboardGeneral.bind(this));
+
+        this.router.get("/sum-exp-inc", this.sumExpInc.bind(this));
+        this.router.get("/product-children-sum", this.productChildrenSum.bind(this));
+
         this.router.get("/sum", this.sum.bind(this));
         this.router.get("/credits", this.credits.bind(this));
         this.router.get("/partners-pie-positive", this.partnersPiePositive.bind(this));
@@ -41,6 +48,59 @@ export class AnalysisController {
             params.push(dateTo);
         }
         return params;
+    }
+
+    async sumExpInc(req, res) {
+        var params = this.dateQueryParams(req.query);
+        var sum = await this.transactionRepo.query("SELECT SUM(value) as sum FROM transaction t LEFT JOIN transaction_part p ON t.id=p.transactionId LEFT JOIN product pr ON p.productId=pr.id WHERE (pr.id IS NULL OR pr.name != 'Kredit') AND " + (req.query.income ? "p.value > 0" : "p.value < 0 ") + (req.query.dateFrom != null ? " AND (t.timestamp >= ?)" : "") + (req.query.dateTo != null ? " AND (t.timestamp <= ?)" : ""), params);
+        res.send({"sum": +sum[0].sum})
+    }
+
+    async productChildrenSum(req, res) {
+        var id = req.query.id;
+        var income = req.query.income;
+
+        var qb;
+        if (id != null) {
+            qb = this.productRepo.createQueryBuilder("product").where("product.parentId = :id", {id: id});
+        } else {
+            qb = this.productRepo.createQueryBuilder("product").where("product.parentId IS NULL");
+        }
+        qb = qb
+            .leftJoin("product_closure", "closure", "closure.id_ancestor = product.id")
+            .leftJoin("product", "descendant", "closure.id_descendant = descendant.id")
+            .leftJoin("transaction_part", "tp", "tp.productId = descendant.id").innerJoin("transaction", "t", "t.id = tp.transactionId").andWhere(income ? "tp.value > 0 " : "tp.value < 0");
+        qb = this.queryBuilderDateParams(qb, req.query, "t");
+        qb = qb.groupBy("product.id").addSelect("SUM(tp.value)", "product_sum");
+        console.log(qb.getQueryAndParameters());
+        console.log(req.query);
+        var result = await qb.getMany()
+        console.log(result);
+        result = result.map((c: Product) => {
+            var sum = c.sum;
+            delete c.sum;
+            return {product: c, sum: sum};
+        });
+        if (id == null) {
+            var sum = await this.queryBuilderDateParams(this.transactionRepo.createQueryBuilder("t")
+                    .leftJoin("transaction_part", "tp", "t.id = tp.transactionId")
+                    .where("tp.productId IS NULL")
+                    .andWhere(income ? "tp.value > 0" : "tp.value < 0"),
+                req.query, "t")
+                .select("SUM(tp.value) as sum").getRawOne();
+            if (sum["sum"] != null)
+                result.push({product: null, sum: sum["sum"]})
+        }
+        res.send(result);
+    }
+
+    queryBuilderDateParams<T>(qb: SelectQueryBuilder<T>, reqQuery, transactionAlias): SelectQueryBuilder<T> {
+        if (reqQuery.dateFrom != null)
+            qb = qb.andWhere(transactionAlias + ".timestamp >= :dateFrom", {dateFrom: new Date(reqQuery.dateFrom)});
+        if (reqQuery.dateTo != null)
+            qb = qb.andWhere(transactionAlias + ".timestamp <= :dateTo", {dateTo: new Date(reqQuery.dateTo)});
+
+        return qb;
     }
 
     async sum(req, res) {

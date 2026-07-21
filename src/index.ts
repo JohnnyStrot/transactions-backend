@@ -1,12 +1,13 @@
-require('dotenv').config();
-
 import {AppDataSource} from "./data-source";
 import express from 'express';
 import * as console from "node:console";
 
+require('dotenv').config();
+
 const keycloak = require('./keycloak');
 
 const port = process.env.PORT;
+
 
 // Routes
 const routes = require('./routes');
@@ -25,6 +26,7 @@ app.use('/',
 
 AppDataSource.initialize().then(() => {
     console.log("Data source initialized");
+    
     app.listen(port, () => {
         console.log(`Server Started at ${port}`);
     });
