@@ -77,6 +77,8 @@ export class Product extends AbstractEntity<Product> {
         }
         if (json.parent) {
             product.parent = Product.fromJSON(json.parent);
+        } else if (json.parentId === null) {
+            product.parent = null;
         }
         return product;
     }
@@ -126,8 +128,11 @@ export class Product extends AbstractEntity<Product> {
     color: number = 0xFF7F7F7F
 
     // Sum of transactions for analysis
-    @Column({select: false, nullable: true})
+    @Column({select: false, insert: false, update: false, nullable: true,})
     sum: string;
+    // Count of transactions for analysis
+    @Column({select: false, insert: false, update: false, nullable: true,})
+    count: number;
 
     @ManyToOne(type => Company, comp => comp.products, {nullable: true, onDelete: "SET NULL"})
     producer?: Company | null = null

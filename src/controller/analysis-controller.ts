@@ -52,10 +52,30 @@ export class AnalysisController {
 
     async sumExpInc(req, res) {
         var params = this.dateQueryParams(req.query);
-        var sum = await this.transactionRepo.query("SELECT SUM(value) as sum FROM transaction t LEFT JOIN transaction_part p ON t.id=p.transactionId LEFT JOIN product pr ON p.productId=pr.id WHERE (pr.id IS NULL OR pr.name != 'Kredit') AND " + (req.query.income ? "p.value > 0" : "p.value < 0 ") + (req.query.dateFrom != null ? " AND (t.timestamp >= ?)" : "") + (req.query.dateTo != null ? " AND (t.timestamp <= ?)" : ""), params);
+
+        var qb;
+
+        if (req.query.product != null) {
+            qb = this.productRepo.createQueryBuilder("product").where("product.id = :id", {id: req.query.product})
+                .leftJoin("product_closure", "closure", "closure.id_ancestor = product.id")
+                .leftJoin("product", "descendant", "closure.id_descendant = descendant.id")
+                .leftJoin("transaction_part", "tp", "tp.productId = descendant.id")
+                .distinctOn(["tp.id"])
+                .innerJoin("transaction", "t", "t.id = tp.transactionId")
+                .andWhere("descendant.name <> 'Kredit'").andWhere("product.name <> 'Kredit'");
+        } else {
+            qb = this.transactionRepo.createQueryBuilder("t")
+                .innerJoin("transaction_part", "tp", "tp.transactionId = t.id")
+                .leftJoin("product", "p", "p.id = tp.productId")
+                .andWhere("(p.id IS NULL or p.name <> 'Kredit')");
+        }
+        qb = this.queryBuilderDateParams(qb, req.query, "t")
+            .andWhere(req.query.income ? "tp.value > 0 " : "tp.value < 0")
+            .select("SUM(tp.value)", "sum");
+        var sum = await qb.getRawMany();
         res.send({"sum": +sum[0].sum})
     }
-
+    
     async productChildrenSum(req, res) {
         var id = req.query.id;
         var income = req.query.income;
@@ -69,17 +89,22 @@ export class AnalysisController {
         qb = qb
             .leftJoin("product_closure", "closure", "closure.id_ancestor = product.id")
             .leftJoin("product", "descendant", "closure.id_descendant = descendant.id")
-            .leftJoin("transaction_part", "tp", "tp.productId = descendant.id").innerJoin("transaction", "t", "t.id = tp.transactionId").andWhere(income ? "tp.value > 0 " : "tp.value < 0");
-        qb = this.queryBuilderDateParams(qb, req.query, "t");
-        qb = qb.groupBy("product.id").addSelect("SUM(tp.value)", "product_sum");
-        console.log(qb.getQueryAndParameters());
-        console.log(req.query);
+            .leftJoin("transaction_part", "tp", "tp.productId = descendant.id")
+            .innerJoin("transaction", "t", "t.id = tp.transactionId")
+            .leftJoinAndSelect("product.producer", "producer")
+            .distinctOn(["tp.id"])
+            .andWhere(income ? "tp.value > 0 " : "tp.value < 0");
+        qb = this.queryBuilderDateParams(qb, req.query, "t")
+            .andWhere("descendant.name <> 'Kredit'")
+            .andWhere("product.name <> 'Kredit'");
+        qb = qb.groupBy("product.id").addSelect("SUM(tp.value)", "product_sum").addSelect("COUNT(DISTINCT t.id)", "product_count");
         var result = await qb.getMany()
-        console.log(result);
         result = result.map((c: Product) => {
             var sum = c.sum;
             delete c.sum;
-            return {product: c, sum: sum};
+            var count = c.count;
+            delete c.count;
+            return {product: c, sum: sum, count: count};
         });
         if (id == null) {
             var sum = await this.queryBuilderDateParams(this.transactionRepo.createQueryBuilder("t")
@@ -87,9 +112,9 @@ export class AnalysisController {
                     .where("tp.productId IS NULL")
                     .andWhere(income ? "tp.value > 0" : "tp.value < 0"),
                 req.query, "t")
-                .select("SUM(tp.value) as sum").getRawOne();
+                .select("SUM(tp.value) as sum, COUNT(DISTINCT t.id) as count").getRawOne();
             if (sum["sum"] != null)
-                result.push({product: null, sum: sum["sum"]})
+                result.push({product: null, sum: sum["sum"], count: sum["count"]});
         }
         res.send(result);
     }
@@ -105,6 +130,7 @@ export class AnalysisController {
 
     async sum(req, res) {
         var params = this.dateQueryParams(req.query);
+
         var sum = await this.transactionRepo.query("SELECT SUM(value) as sum FROM transaction t LEFT JOIN transaction_part p ON t.id=p.transactionId LEFT JOIN product pr ON p.productId=pr.id WHERE (pr.id IS NULL OR pr.name != 'Kredit')" + (req.query.dateFrom != null ? " AND (t.timestamp >= ?)" : "") + (req.query.dateTo != null ? " AND (t.timestamp <= ?)" : ""), params);
         res.send({"sum": +sum[0].sum})
     }

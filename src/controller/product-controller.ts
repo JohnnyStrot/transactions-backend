@@ -1,6 +1,7 @@
 import {BaseController} from "./base-controller";
 import {FindOptionsOrder, FindOptionsRelations, FindOptionsWhere} from "typeorm";
 import {Product} from "../entity/Product";
+import console from "node:console";
 
 export class ProductController extends BaseController<Product> {
 
@@ -30,7 +31,6 @@ export class ProductController extends BaseController<Product> {
     }
 
     protected async getChildren(req, res) {
-        console.log(req);
         const item = await this.repository.findOne({
             where: {id: Number(req.params.id)} as any,
             order: this.getOneOrder(),
@@ -43,10 +43,17 @@ export class ProductController extends BaseController<Product> {
     async updateEntity(id: number, received: any) {
         received.transaction_parts = undefined;
         received.children = undefined;
-        await this.repository.update(id, received);
+        delete received.sum;
+        await this.repository.save(received);
     }
 
     buildOrder(query: any): FindOptionsOrder<Product> {
         return {favorite: "DESC", name: "ASC"};
+    }
+
+    async createEntity(): Promise<Product> {
+        var p = this.repository.create();
+        delete p.sum;
+        return await this.repository.save(p);
     }
 }

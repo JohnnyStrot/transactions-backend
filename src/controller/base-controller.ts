@@ -87,6 +87,7 @@ export abstract class BaseController<T extends AbstractEntity<T>> {
 
     protected async update(req: Request, res: Response) {
         try {
+            console.log(req.body)
             const received = this.entityCtor.fromJSON(req.body) as any;
             await this.updateEntity({id: Number(req.params.id)} as any, received);
 
