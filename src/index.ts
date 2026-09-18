@@ -5,7 +5,7 @@ import {Product} from "./entity/Product";
 
 require('dotenv').config();
 
-const keycloak = require('./keycloak');
+//const keycloak = require('./keycloak');
 
 const port = process.env.PORT;
 
@@ -15,14 +15,14 @@ const routes = require('./routes');
 
 const app = express();
 
-app.use(keycloak.middleware());
+//app.use(keycloak.middleware());
 app.use(express.json());
 
 // Register routes
 app.use('/',
-    [
-        keycloak.protect("transactions")
-    ],
+    //[
+    // keycloak.protect("transactions")
+    //],
     routes);
 
 async function fixClosureTable() {

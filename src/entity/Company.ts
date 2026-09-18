@@ -17,6 +17,7 @@ export class Company extends AbstractEntity<Company> {
             a.subsidiaries = this.subsidiaries.map(s => s.toJSON());
 
         a.name = this.name;
+        a.logo = this.logo;
 
         return a;
     }
@@ -24,6 +25,7 @@ export class Company extends AbstractEntity<Company> {
     merge(ent: Partial<Company>): Company {
         this.id = ent.id;
         this.name = ent.name;
+        this.logo = ent.logo;
 
         return this;
     }
@@ -47,6 +49,9 @@ export class Company extends AbstractEntity<Company> {
 
     @Column({type: 'varchar', length: 142, nullable: false})
     name: string = ""
+
+    @Column({type: 'varchar', length: 512, nullable: true})
+    logo: string = ""
 
     @OneToMany(type => Product, product => product.producer, {nullable: true})
     products?: Product[]

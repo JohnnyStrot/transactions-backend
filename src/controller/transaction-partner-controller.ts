@@ -9,6 +9,7 @@ export class TransactionPartnerController extends BaseController<TransactionPart
     }
 
     protected initializeRoutes() {
+        this.router.get("/search-partner", this.searchPartner.bind(this));
     }
 
     buildWhere(query: any): FindOptionsWhere<TransactionPartner> | FindOptionsWhere<TransactionPartner>[] {
@@ -41,5 +42,44 @@ export class TransactionPartnerController extends BaseController<TransactionPart
 
     buildOrder(query: any): FindOptionsOrder<TransactionPartner> {
         return {favorite: "DESC", name: "ASC"};
+    }
+
+    async searchPartner(req, res) {
+        var qb;
+
+
+        var dateEnd = new Date(Date.now())
+        var dateStart = new Date(Date.now() - 10368000000)
+
+        qb = this.repository.createQueryBuilder("tp")
+            .leftJoinAndSelect("tp.company", "company")
+            .leftJoin("transaction", "t", "tp.id = t.transactionPartnerId")
+            .addSelect('COUNT(t.id)', 'tp_count')
+            .orderBy('tp_count', "DESC")
+            //.where("t.timestamp >= :dateStart AND t.timestamp <= :dateEnd", {dateStart: dateStart, dateEnd: dateEnd})
+            .groupBy("tp.id");
+        if (req.query.search) {
+            qb = qb.andWhere("(tp.name LIKE :search OR (company.name IS NOT NULL AND company.name LIKE :search))", {search: "%" + req.query.search + "%"})
+        }
+        if (req.query.city) {
+            qb = qb.andWhere("(tp.city LIKE :city)", {city: "%" + req.query.city + "%"});
+        }
+        if (req.query.take) {
+            const take = Number.parseInt(req.query.take);
+            if (!isNaN(take)) {
+                qb = qb.limit(take);
+
+                if (req.query.skip) {
+                    const skip = Number.parseInt(req.query.skip);
+                    if (!isNaN(skip)) {
+                        qb = qb.offset(skip);
+                    }
+                }
+            }
+        }
+
+        var tps = await qb.getMany();
+        res.send(tps)
+
     }
 }

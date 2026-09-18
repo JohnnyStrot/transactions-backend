@@ -59,7 +59,6 @@ export class TransactionController extends BaseController<Transaction> {
     }
 
     async updateEntity(id: number, received: any) {
-        console.log(received);
         var tps = received.transactionParts;
         received.transactionParts = undefined;
         var t = await this.repository.save(received);
@@ -68,6 +67,7 @@ export class TransactionController extends BaseController<Transaction> {
             part.transaction = t;
             await AppDataSource.getRepository(TransactionPart).save(part);
         }
+        return await this.repository.findOne({where: {id: t.id}});
     }
 
     buildOrder(query: any): {} {

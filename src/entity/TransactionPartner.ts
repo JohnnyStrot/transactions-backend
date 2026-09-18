@@ -74,6 +74,10 @@ export class TransactionPartner extends AbstractEntity<TransactionPartner> {
     @Column({type: 'bool', nullable: false, default: false})
     favorite: boolean = false
 
+    // Count of transactions for analysis
+    @Column({select: false, insert: false, update: false, nullable: true,})
+    count: number;
+
     @ManyToOne(type => Company, company => company.subsidiaries, {nullable: true, onDelete: "SET NULL"})
     company?: Company | null = null
 
